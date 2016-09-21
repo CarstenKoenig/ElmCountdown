@@ -68,6 +68,20 @@ hasHoles formula =
             hasHoles a || hasHoles b
 
 
+filterPossibleNumbers : Formula -> List Int -> List Int
+filterPossibleNumbers formula =
+    let
+        isJust m =
+            case m of
+                Just _ ->
+                    True
+
+                Nothing ->
+                    False
+    in
+        List.filter (\n -> insert (Number n) formula |> isJust)
+
+
 isValid : Formula -> Bool
 isValid formula =
     case formula of
@@ -230,7 +244,7 @@ view : Model -> Html Message
 view model =
     Html.div
         []
-        [ viewNumberButtons model.availableNumbers
+        [ viewNumberButtons (filterPossibleNumbers model.formula model.availableNumbers)
         , viewOperatorButtons model.operators
         , viewFormula model.formula
         , Html.div [ Attr.style [ ( "margin", "5px" ) ] ]
