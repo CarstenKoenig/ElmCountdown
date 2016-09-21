@@ -163,25 +163,50 @@ type alias Model =
     { numbers : List Int
     , operators : List Operator
     , goal : Int
+    , availableNumbers : List Int
     , formula : Formula
     }
 
 
 clear : Model -> Model
 clear model =
-    { model | formula = Hole }
+    { model
+        | formula = Hole
+        , availableNumbers = model.numbers
+    }
+
+
+removeNumber : Int -> Model -> Model
+removeNumber n model =
+    let
+        remOne ns =
+            case ns of
+                [] ->
+                    []
+
+                n' :: ns ->
+                    if n' == n then
+                        ns
+                    else
+                        n' :: remOne ns
+    in
+        { model | availableNumbers = remOne model.availableNumbers }
 
 
 type Message
     = NoOp
     | Clear
     | AddOperator (Formula -> Formula -> Formula)
-    | AddNumber Int
+    | ChooseNumber Int
 
 
 initialModel : Model
 initialModel =
-    { numbers = [ 1, 2, 3 ], operators = allOperators, goal = 6, formula = Hole }
+    let
+        numbers =
+            [ 1, 2, 3, 3 ]
+    in
+        { numbers = numbers, availableNumbers = numbers, operators = allOperators, goal = 6, formula = Hole }
 
 
 update : Message -> Model -> Model
@@ -193,8 +218,9 @@ update msg model =
         Clear ->
             clear model
 
-        AddNumber n ->
+        ChooseNumber n ->
             { model | formula = Maybe.withDefault model.formula (insert (Number n) model.formula) }
+                |> removeNumber n
 
         AddOperator op ->
             { model | formula = Maybe.withDefault model.formula (insert (op Hole Hole) model.formula) }
@@ -204,7 +230,7 @@ view : Model -> Html Message
 view model =
     Html.div
         []
-        [ viewNumberButtons model.numbers
+        [ viewNumberButtons model.availableNumbers
         , viewOperatorButtons model.operators
         , viewFormula model.formula
         , Html.div [ Attr.style [ ( "margin", "5px" ) ] ]
@@ -239,7 +265,7 @@ viewNumberButton n =
             , ( "line-height", "20px" )
             , ( "font-weight", "bold" )
             ]
-        , Events.onClick (AddNumber n)
+        , Events.onClick (ChooseNumber n)
         ]
         [ Html.text (toString n) ]
 
