@@ -230,7 +230,6 @@ allOperators =
 
 type alias Model =
     { numbers : List Int
-    , operators : List Operator
     , goal : Int
     , availableNumbers : List Int
     , formula : Formula
@@ -258,7 +257,7 @@ initialModel =
         numbers =
             [ 1, 2, 3, 3 ]
     in
-        { numbers = numbers, availableNumbers = numbers, operators = allOperators, goal = 6, formula = Hole }
+        { numbers = numbers, availableNumbers = numbers, goal = 6, formula = Hole }
 
 
 update : Message -> Model -> Model
