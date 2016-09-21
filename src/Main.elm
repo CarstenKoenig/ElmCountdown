@@ -46,40 +46,95 @@ eval formula =
             Maybe.map2 (//) (eval a) (eval b)
 
 
-hasHoles : Formula -> Bool
-hasHoles formula =
+nrHoles : Formula -> Int
+nrHoles formula =
     case formula of
         Hole ->
-            True
+            1
 
         Number _ ->
-            False
+            0
 
         Plus a b ->
-            hasHoles a || hasHoles b
+            nrHoles a + nrHoles b
 
         Minus a b ->
-            hasHoles a || hasHoles b
+            nrHoles a + nrHoles b
 
         Mult a b ->
-            hasHoles a || hasHoles b
+            nrHoles a + nrHoles b
 
         Div a b ->
-            hasHoles a || hasHoles b
+            nrHoles a + nrHoles b
 
 
 filterPossibleNumbers : Formula -> List Int -> List Int
-filterPossibleNumbers formula =
+filterPossibleNumbers formula ns =
     let
-        isJust m =
-            case m of
-                Just _ ->
-                    True
+        isSat n f =
+            case f of
+                Just f ->
+                    isSatisfyable f (removeNumber n ns)
 
                 Nothing ->
                     False
     in
-        List.filter (\n -> insert (Number n) formula |> isJust)
+        List.filter (\n -> insert (Number n) formula |> isSat n) ns
+
+
+filterPossibleOperators : Formula -> List Int -> List Operator
+filterPossibleOperators formula ns =
+    let
+        isSat f =
+            case f of
+                Just f ->
+                    isSatisfyable f ns
+
+                Nothing ->
+                    False
+    in
+        List.filter (\op -> insert (op.action Hole Hole) formula |> isSat) allOperators
+
+
+isSatisfyable : Formula -> List Int -> Bool
+isSatisfyable formula ns =
+    let
+        holeCount =
+            nrHoles formula
+    in
+        if holeCount == 0 then
+            True
+        else if List.isEmpty ns then
+            False
+        else
+            let
+                numberPicks =
+                    List.filterMap (\n -> insert (Number n) formula |> Maybe.map (\formula' -> ( formula', removeNumber n ns ))) ns
+
+                operatorPicks =
+                    if holeCount < List.length ns then
+                        List.filterMap (\op -> insert (op Hole Hole) formula) [ Plus, Minus, Mult, Div ]
+                    else
+                        []
+            in
+                List.any (\( formula', ns' ) -> isSatisfyable formula' ns') numberPicks || List.any (\formula' -> isSatisfyable formula' ns) operatorPicks
+
+
+removeNumber : Int -> List Int -> List Int
+removeNumber n ns =
+    let
+        remOne ns' =
+            case ns' of
+                [] ->
+                    []
+
+                n' :: ns' ->
+                    if n' == n then
+                        ns'
+                    else
+                        n' :: remOne ns'
+    in
+        remOne ns
 
 
 isValid : Formula -> Bool
@@ -89,13 +144,13 @@ isValid formula =
             True
 
         Number n ->
-            n >= 0
+            n > 0
 
         Plus a b ->
             isValid a && isValid b
 
         Minus a b ->
-            isValid a && isValid b && (Maybe.withDefault True (Maybe.map2 (>=) (eval a) (eval b)))
+            isValid a && isValid b && (Maybe.withDefault True (Maybe.map2 (>) (eval a) (eval b)))
 
         Mult a b ->
             isValid a && isValid b
@@ -190,23 +245,6 @@ clear model =
     }
 
 
-removeNumber : Int -> Model -> Model
-removeNumber n model =
-    let
-        remOne ns =
-            case ns of
-                [] ->
-                    []
-
-                n' :: ns ->
-                    if n' == n then
-                        ns
-                    else
-                        n' :: remOne ns
-    in
-        { model | availableNumbers = remOne model.availableNumbers }
-
-
 type Message
     = NoOp
     | Clear
@@ -233,8 +271,10 @@ update msg model =
             clear model
 
         ChooseNumber n ->
-            { model | formula = Maybe.withDefault model.formula (insert (Number n) model.formula) }
-                |> removeNumber n
+            { model
+                | formula = Maybe.withDefault model.formula (insert (Number n) model.formula)
+                , availableNumbers = removeNumber n model.availableNumbers
+            }
 
         AddOperator op ->
             { model | formula = Maybe.withDefault model.formula (insert (op Hole Hole) model.formula) }
@@ -245,7 +285,7 @@ view model =
     Html.div
         []
         [ viewNumberButtons (filterPossibleNumbers model.formula model.availableNumbers)
-        , viewOperatorButtons model.operators
+        , viewOperatorButtons (filterPossibleOperators model.formula model.availableNumbers)
         , viewFormula model.formula
         , Html.div [ Attr.style [ ( "margin", "5px" ) ] ]
             [ Html.button [ Events.onClick Clear ] [ Html.text "C" ]
