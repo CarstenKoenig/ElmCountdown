@@ -255,9 +255,9 @@ initialModel : Model
 initialModel =
     let
         numbers =
-            [ 1, 2, 3, 3 ]
+            [ 1, 3, 7, 10, 25, 50 ]
     in
-        { numbers = numbers, availableNumbers = numbers, goal = 6, formula = Hole }
+        { numbers = numbers, availableNumbers = numbers, goal = 765, formula = Hole }
 
 
 update : Message -> Model -> Model
