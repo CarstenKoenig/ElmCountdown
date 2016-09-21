@@ -46,8 +46,64 @@ eval formula =
             Maybe.map2 (//) (eval a) (eval b)
 
 
+hasHoles : Formula -> Bool
+hasHoles formula =
+    case formula of
+        Hole ->
+            True
+
+        Number _ ->
+            False
+
+        Plus a b ->
+            hasHoles a || hasHoles b
+
+        Minus a b ->
+            hasHoles a || hasHoles b
+
+        Mult a b ->
+            hasHoles a || hasHoles b
+
+        Div a b ->
+            hasHoles a || hasHoles b
+
+
+isValid : Formula -> Bool
+isValid formula =
+    case formula of
+        Hole ->
+            True
+
+        Number n ->
+            n >= 0
+
+        Plus a b ->
+            isValid a && isValid b
+
+        Minus a b ->
+            isValid a && isValid b && (Maybe.withDefault True (Maybe.map2 (>=) (eval a) (eval b)))
+
+        Mult a b ->
+            isValid a && isValid b
+
+        Div a b ->
+            isValid a && isValid b && (Maybe.withDefault True (Maybe.map2 (\a b -> a `rem` b == 0) (eval a) (eval b)))
+
+
 insert : Formula -> Formula -> Maybe Formula
 insert value into =
+    (insert' value into)
+        `Maybe.andThen`
+            (\formula ->
+                if isValid formula then
+                    Just formula
+                else
+                    Nothing
+            )
+
+
+insert' : Formula -> Formula -> Maybe Formula
+insert' value into =
     case into of
         Hole ->
             Just value
@@ -56,36 +112,36 @@ insert value into =
             Nothing
 
         Plus a b ->
-            case insert value a of
+            case insert' value a of
                 Just a' ->
                     Just (Plus a' b)
 
                 Nothing ->
-                    insert value b |> Maybe.map (Plus a)
+                    insert' value b |> Maybe.map (Plus a)
 
         Minus a b ->
-            case insert value a of
+            case insert' value a of
                 Just a' ->
                     Just (Minus a' b)
 
                 Nothing ->
-                    insert value b |> Maybe.map (Minus a)
+                    insert' value b |> Maybe.map (Minus a)
 
         Mult a b ->
-            case insert value a of
+            case insert' value a of
                 Just a' ->
                     Just (Mult a' b)
 
                 Nothing ->
-                    insert value b |> Maybe.map (Mult a)
+                    insert' value b |> Maybe.map (Mult a)
 
         Div a b ->
-            case insert value a of
+            case insert' value a of
                 Just a' ->
                     Just (Div a' b)
 
                 Nothing ->
-                    insert value b |> Maybe.map (Div a)
+                    insert' value b |> Maybe.map (Div a)
 
 
 type alias Operator =
